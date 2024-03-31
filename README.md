@@ -2,8 +2,10 @@
 All the commands I use on my daily basis
 ===
 
+
 ## Table Of Contents
 - [LINUX COMMANDS by LUK6XFF](#linux-commands-by-luk6xff)
+  - [Configure Wi-Fi](#wifi)
   - [User](#user)
   - [Docker](#docker)
   - [Hardware](#hardware)
@@ -26,9 +28,27 @@ All the commands I use on my daily basis
 
 
 
+<a id="wifi"></a>
+## Configure Wi-Fi
+### Network Manager (nmcli)
+* Install Network Manager
+```
+sudo apt install network-manager
+```
+* Discover network information for all network interfaces
+```
+nmcli device show
+```
+* If device is unmanaged run following command
 
+```
+sudo nmcli dev set "wifi-card-name" managed yes
+```
 
-
+* Can use nice Python 3 script
+```
+https://github.com/NoahCristino/easywifi
+```
 
 ## User
 * Become a system admin
