@@ -1,0 +1,229 @@
+
+lsb_release -a
+
+tmux a -t mysession
+
+sudo netstat -tulpn | grep LISTEN
+
+
+sudo lsof -i -n -P | grep LISTEN
+ip link show
+
+ssh s720adm@192.168.0.32 -i ~/.ssh/local_server
+
+
+--------------------------------------------------------------------
+nginx
+konfiguracja aktywnych serwerów:
+sudo nano /etc/nginx/sites-available/
+sudo systemctl restart nginx
+sprawdzanie poprawnosci konfiguracji"
+sudo nginx -t
+tworzenie dowiązania:
+sudo ln -s /etc/nginx/sites-available/ha_redirect.conf /etc/nginx/sites-enabled/
+
+
+--------------------------------------------------------------------
+kvm
+Sprawdzenie statusu maszyn wirtualnych:
+virsh list --all
+Uruchomienie maszyny wirtualnej
+virsh start <nazwa_maszyny>
+
+virt-install  --name haos --description "Home Assistant OS"  --os-variant=generic  --ram=1500  --vcpus=2  --disk haos_ova-13.2.qcow2,bus=scsi --controller type=scsi,model=virtio-scsi --import --graphics none --boot uefi
+Ustaw automatyczne uruchamianie:
+sudo virsh autostart
+Sprawdź adres ip maszyny
+virsh domifaddr <nazwa_maszyny>
+
+virsh console <nazwa_maszyny>
+
+
+--------------------------------------------------------------------
+nmap
+sudo nmap -sn 192.168.122.0/24
+--------------------------------------------------------------------
+nftables
+Sprawdź reguły
+sudo nft list table ip nat
+Zapisywanie reguł:
+sudo nft list ruleset > /etc/nftables.conf
+
+Sprawdź reguły
+sudo virsh autostart <nazwa_maszyny>
+
+Sprawdź konfigurację autostartu
+sudo virsh list --autostart
+
+virsh net-list --all 
+
+
+
+
+
+--------------------------------------------------------------------
+
+curl -v http://localhost:8123
+
+--------------------------------------------------------------------
+sudo nft list ruleset   
+sudo nft list table ip nat
+nft list tables
+
+
+Uruchomienie nftables
+sudo systemctl start nftables
+
+
+ Włączenie nftables przy starcie systemu
+sudo systemctl enable nftables
+
+
+sudo systemctl status nftables
+sudo systemctl restart nftables
+
+sudo nft 'add chain ip nat prerouting { type nat hook prerouting priority 0; policy accept; }'
+sudo nft 'add chain ip nat POSTROUTING { type nat hook postrouting priority srcnat; }'
+sudo nft 'add rule ip nat PREROUTING ip daddr 192.168.122.12 tcp dport 8123 counter redirect to :8000'
+
+sudo nft add table ip nat
+
+Zapisywanie do pliku
+sudo nft list ruleset > /etc/nftables.conf
+
+
+
+
+KONFIGURACJA BRIDGE NETWORKING DLA KVM
+
+trzeba upewnić się jakiego typui mamy konfiguracje interfejsów np. ubuntu uzywa netplan
+mozna to sprawdzić np.
+
+systemctl status systemd-networkd
+
+w moim przypadku był to systemd-networkd
+
+
+Krok 1: Utwórz konfigurację mostka
+
+    Przejdź do katalogu /etc/systemd/network/ i utwórz nowy plik konfiguracji mostka, np. 10-br0.netdev:
+
+    bash
+
+sudo nano /etc/systemd/network/10-br0.netdev
+
+Dodaj poniższą konfigurację:
+
+ini
+
+    [NetDev]
+    Name=br0
+    Kind=bridge
+
+    Zapisz plik i zamknij go.
+
+Krok 2: Skonfiguruj interfejsy dołączone do mostka
+
+    Utwórz plik 10-br0.network dla mostka:
+
+    bash
+
+sudo nano /etc/systemd/network/10-br0.network
+
+Dodaj poniższą konfigurację, aby mostek uzyskał adres IP z DHCP:
+
+ini
+
+[Match]
+Name=br0
+
+[Network]
+DHCP=yes
+
+Teraz utwórz plik dla interfejsu fizycznego, np. 20-eth0.network:
+
+bash
+
+sudo nano /etc/systemd/network/20-eth0.network
+
+Dodaj poniższą konfigurację, aby podłączyć interfejs do mostka (zastąp eth0 nazwą swojego interfejsu):
+
+ini
+
+    [Match]
+    Name=eth0
+
+    [Network]
+    Bridge=br0
+
+Krok 3: Restart systemd-networkd
+
+Zastosuj zmiany, restartując usługę systemd-networkd:
+
+bash
+
+sudo systemctl restart systemd-networkd
+
+Krok 4: Weryfikacja
+
+Sprawdź, czy mostek br0 został utworzony i posiada adres IP:
+
+bash
+
+ip addr show br0
+
+Po wykonaniu tych kroków powinieneś mieć mostek br0, którego możesz użyć w konfiguracji KVM.
+
+Krok 2: Przestaw maszynę wirtualną na bridge mode
+
+    Wyłącz maszynę wirtualną z Home Assistant:
+
+    bash
+
+virsh shutdown <nazwa_maszyny>
+
+Zmień konfigurację sieci maszyn wirtualnych, aby korzystała z br0 zamiast NAT. Edytuj plik XML maszyny:
+
+bash
+
+sudo virsh edit <nazwa_maszyny>
+
+W sekcji <interface> znajdź network='default' i zamień na bridge='br0'. Powinno to wyglądać podobnie do poniższego:
+
+xml
+
+<interface type='bridge'>
+  <mac address='xx:xx:xx:xx:xx:xx'/>
+  <source bridge='br0'/>
+  <model type='virtio'/>
+</interface>
+
+Zapisz i zamknij plik.
+
+Uruchom ponownie maszynę:
+
+bash
+
+    virsh start <nazwa_maszyny>
+
+Krok 3: Weryfikacja
+
+Sprawdź, czy Home Assistant uzyskał nowy adres IP z twojej sieci LAN. Możesz to zrobić za pomocą polecenia:
+
+bash
+
+virsh domifaddr <nazwa_maszyny>
+
+Po tych zmianach Home Assistant powinien być dostępny pod adresem IP przydzielonym przez twoją sieć.
+
+
+
+
+
+
+
+
+
+
+
+
